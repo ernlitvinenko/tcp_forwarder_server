@@ -203,7 +203,7 @@ async def list_sessions():
     return [DiagDataResponse(id=x.id, masterPort=x.masterPort, slavePort=x.slavePort, status=x.status) for x in diag_data.values()]
 
 async def main():
-    uvicorn.run("main:app", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
 
 
 if __name__ == "__main__":
