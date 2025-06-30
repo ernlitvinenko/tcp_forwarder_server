@@ -97,6 +97,8 @@ def read_data_from_socket(con: socket, address_from: str, queue_to: Queue):
     try:
         while True:
             data = con.recv(1024)
+            if data == b"" or len(data) == 0:
+                continue
             logger.success(f"Get New message from {address_from}: {data!r}")
             queue_to.put(data)
     except Exception as exc:
