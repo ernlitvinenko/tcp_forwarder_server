@@ -8,6 +8,8 @@ dependencies = [
     "fastapi>=0.115.13",
     "loguru>=0.7.3",
     "mypy>=1.16.1",
+    "psutil>=7.0.0",
     "ruff>=0.12.0",
+    "types-psutil>=7.0.0.20250601",
     "uvicorn>=0.34.3",
 ]

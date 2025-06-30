@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from queue import Queue
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -10,12 +10,16 @@ from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
 from loguru import logger
 from uuid import uuid4
+from psutil import net_connections
 import uvicorn
 
+from collections import deque
 
 app = FastAPI(title="Obd online diagnostic service")
 
-available_ports = [p for p in range(10000, 65535 + 1)]
+logger.add("logs/file-{time:DD-MM-YYYY}.log", rotation="500 MB")
+
+available_ports = deque(range(10000, 65535 + 1))
 
 
 class Action(str, Enum):
@@ -44,6 +48,10 @@ class DIAG_STATUS(int, Enum):
     ERROR = 6
 
 
+class Message:
+    from_: Literal["master"] | Literal["slave"]
+    data: bytes
+
 @dataclass
 class DiagData:
     id: str
@@ -61,13 +69,21 @@ class DiagData:
 diag_data: dict[str, DiagData] = {}
 
 
+def get_port(used_ports: list[int]) -> int:
+    while True:
+        port = available_ports.popleft()
+        if port in used_ports:
+            continue
+        return port
+
 def generate_port() -> tuple[int, int]:
+
+    used_ports = [x.laddr.port for x in net_connections() if x.laddr]
+
     while True:
         if len(available_ports) < 2:
             continue
-        p1, p2 = available_ports[0], available_ports[1]
-        del available_ports[0], available_ports[0]
-        return p1, p2
+        return get_port(used_ports), get_port(used_ports)
 
 
 def expose_socket(port) -> socket:
@@ -171,8 +187,8 @@ async def expose_port(req_data: ExposePort):
         if session.socket_slave:
             session.socket_slave.close()
 
-        available_ports.append(session.masterPort)
-        available_ports.append(session.slavePort)
+        available_ports.appendleft(session.masterPort)
+        available_ports.appendleft(session.slavePort)
 
         session.status = DIAG_STATUS.FINISHED
 
@@ -191,4 +207,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    # used_ports = [x.laddr.port for x in psutil.net_connections()]
+    # print(set(available_ports) - set(used_ports))
     asyncio.run(main())
